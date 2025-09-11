@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  facefusion-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.facefusion
+    environment:
+      # MinIO Configuration
+      - MINIO_ENDPOINT=media.aiclip.ai
+      - MINIO_ACCESS_KEY=VtZ6MUPfyTOH3qSiohA2
+      - MINIO_SECRET_KEY=8boVPVIynLEKcgXirrcePxvjSk7gReIDD9pwto3t
+      - MINIO_BUCKET=video
+      - MINIO_SECURE=false
+      
+      # GPU Configuration
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      
+      # RunPod Configuration (for local testing)
+      - RUNPOD_ENDPOINT_ID=test-local
+      - RUNPOD_DEBUG=true
+      
+    volumes:
+      - ./temp:/app/temp
+      - ./inputs:/app/inputs
+      - ./outputs:/app/outputs
+      
+    ports:
+      - "8080:8080"
+      
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+              
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "from facefusion_handler import health_check; health_ok, msg, info = health_check(); exit(0 if health_ok else 1)"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 40s
